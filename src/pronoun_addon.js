@@ -37,7 +37,8 @@ setup.match_word_case = function(original, replacement) {
 
 setup.create_pronoun_tobe_dicts = function() {
   var pronoun_template = {
-  // This maps
+  // This maps subject_pronoun: [[other_pronounforms], [attributes]]
+  // i.e.
   // subject : [[ object, reflexive, adjective, possesive],
   //            [1st2nd3rd_person, sing/pl, verb form]]
   // 1st2nd3rd_person as 1-3, sing/pl as 1, 2 (sing, plural)
@@ -71,10 +72,30 @@ setup.create_pronoun_tobe_dicts = function() {
     ["'ve",          "'ve",     "'s/'hs","'ve"],
   ]
 
+  // This gives a list of [regex, regex_replacement] to derive s-form verbs
+  // from regular verbs
+  // Checks are done in order so first match found is used, i.e. catch-all
+  // should be last item in this list.
+  var verb_replacement_sets = [
+    [/(.*ch)/u, "$1es"],
+    [/(.*sh)/u, "$1es"],
+    [/(.*ss)/u, "$1es"],
+    [/(.*l)f/u, "$1ves"],
+    [/(.*i)fe/u, "$1ves"],
+    [/(.*x)/u, "$1es"],
+    [/(.*[aeiou]s)/u, "$1es"],
+    [/(.*z)/u, "$1es"],
+    [/(.*[aeiou]y)/u, "$1s"],
+    [/(.*[^aeiou])y/u, "$1ies"],
+    [/(.*[aeiou]o)/u, "$1s"],
+    [/(.*[^aeiou])o/u, "$1oes"],
+    [/(.*)/u, "$1s"],
+  ]
+
+
   // This splits a template word given in above data structures to
   // return [actual, umambiguous] with umambiguous = actual in case of no /
-  // unambiguous is also made to lowercase + first letter uppercase to provide
-  // case-insensitive lookup
+  // unambiguous is also made to lowercase to provide case-insensitive lookup
   var split_template_word = function(word) {
     var umambig_word, actual_word;
     if (word.contains("/")) {
@@ -85,19 +106,24 @@ setup.create_pronoun_tobe_dicts = function() {
       actual_word = word;
       umambig_word = word;
     }
-    umambig_word = umambig_word.toLowerCase().toUpperFirst();
+    umambig_word = umambig_word.toLowerCase();
     return([actual_word, umambig_word])
   }
 
   var pronoun_source_lookup = {}; 
     // supply with a source pronoun, gives target type
   var pronoun_target_lookup = {}; 
-    // supply with Target_pronoun+type_index to give target pronoun
-    // note first letter should be capitalised
+    // supply with target_pronoun+type_index to give target pronoun
 
   var tobe_source_lookup = {};
-    // supply with a source tobe article, give target type
+    // supply with a source tobe word, gives tobe word set
   var tobe_target_lookup = {};
+    // supply with target_pronoun, gives index of word to use in tobe word set
+  
+  var pronoun_attr_lookup = {};
+    // supply with target_pronoun, gives attributes of this pronoun
+
+  // Note that all keys in these lookup tables should be lower-case entirely.
 
   // Iterate pronoun template data struct
   // Fill in pronoun_source_lookup with umabiguous->[type, attrs]
@@ -165,6 +191,14 @@ setup.create_pronoun_tobe_dicts = function() {
       console.log(`Warning! Duplicate key in tobe_target_lookup: ${key_umambig_word}`)
     }
     tobe_target_lookup[key_umambig_word] = tobe_form;
+
+    // fill pronoun attr lookup with umambiguous pronoun->attrs
+    existing_value = pronoun_attr_lookup[key_umambig_word];
+    if (existing_value && existing_value!==pronoun_attrs) {
+      console.log(`Warning! Duplicate key in pronoun_attr_lookup: ${key_umambig_word}`)
+    }
+    pronoun_attr_lookup[key_umambig_word] = pronoun_attrs;
+   
   }
 
   // fill tobe source lookup with umbiguous tobe word->tobe word set
@@ -191,6 +225,8 @@ setup.create_pronoun_tobe_dicts = function() {
   setup.pronoun_target_lookup = pronoun_target_lookup;
   setup.tobe_source_lookup = tobe_source_lookup;
   setup.tobe_target_lookup = tobe_target_lookup;
+  setup.pronoun_attr_lookup = pronoun_attr_lookup;
+  setup.verb_replacement_sets = verb_replacement_sets;
 
   if (setup.pronoun_debug) {
     console.log("Details of setup.pronoun_source_lookup:");
@@ -201,6 +237,10 @@ setup.create_pronoun_tobe_dicts = function() {
     console.log(setup.tobe_source_lookup);
     console.log("Details of setup.tobe_target_lookup:");
     console.log(setup.tobe_target_lookup);
+    console.log("Details of setup.pronoun_attr_lookup:");
+    console.log(setup.pronoun_attr_lookup);
+    console.log("Details of setup.verb_replacement_sets:");
+    console.log(setup.verb_replacement_sets);
   }
 }();
 
@@ -208,7 +248,7 @@ setup.create_pronoun_tobe_dicts = function() {
 // given the (umambiguous) target pronoun
 // May return null if original is not a known pronoun
 setup.find_pronoun_replacement = function(original, target_pronoun) {
-  var lookup_original = original.toLowerCase().toUpperFirst();
+  var lookup_original = original.toLowerCase();
   if (setup.pronoun_debug)
     console.log(` Looking up ${lookup_original} in pronoun_source_lookup...`);
   var source_result = setup.pronoun_source_lookup[lookup_original];
@@ -239,7 +279,7 @@ setup.find_pronoun_replacement = function(original, target_pronoun) {
 // given the (umambiguous) target pronoun
 // May return null if original is not a known to be word
 setup.find_tobe_replacement = function(original, target_pronoun) {
-  var lookup_original = original.toLowerCase().toUpperFirst();
+  var lookup_original = original.toLowerCase();
   if (setup.pronoun_debug)
     console.log(` Looking up ${lookup_original} in tobe_source_lookup...`);
 
@@ -273,9 +313,46 @@ setup.find_tobe_replacement = function(original, target_pronoun) {
   }
 }
 
+// Given an original verb, find the verb with in the correct form
+// given the (umambiguous) target pronoun
+// Assumes original verb is in regular form
+// Will return original if cannot find a replacement
+setup.find_verb_replacement = function(original, target_pronoun) {
+
+  var target_attrs = setup.pronoun_attr_lookup[target_pronoun];
+  if (!target_attrs) {
+    console.log(`Warning: ${target_pronoun} not in pronoun_attr_lookup.`);
+    return original;
+  }
+
+  var target_verb_form = target_attrs[2]; //1: regular, 2: s-form
+  if (target_verb_form==1) {
+    // assume original is regular form, not replacment needed
+    if (setup.pronoun_debug)
+      console.log(`${target_pronoun} has verb form ${target_verb_form}, not replacing.`);
+    return original;
+  }
+
+  if (setup.pronoun_debug)
+    console.log(`Checking ${original} for matches in verb_replacement_sets...`);
+  for (const verb_replacement_set of setup.verb_replacement_sets) {
+    var [verb_regex, verg_regex_replace] = verb_replacement_set;
+    if (verb_regex.test(original)) {
+      var replacement = original.replace(verb_regex, verg_regex_replace)
+      if (setup.pronoun_debug)
+        console.log(`  Found ${verb_regex} in ${original}, replacing with ${replacement}`);
+      return replacement;
+    }
+  }
+  if (setup.pronoun_debug)
+    console.log(`${original} not found in any verb_replacement_sets, not replacing.`);
+  return original;
+
+}
+
 setup.pronoun_handler = function() {
   var original = this.args[0];
-  var new_pronoun = this.args[1].toUpperFirst();
+  var new_pronoun = this.args[1].toLowerCase();
   //var new_pronoun_iscap = setup.find_word_case(new_pronoun);
   var new_text = original.replace(/(\p{Alphabetic}+)([0-9]+)/gu,
     function(match, p1, p2){
@@ -286,7 +363,10 @@ setup.pronoun_handler = function() {
       replacement = setup.find_pronoun_replacement(word, new_pronoun);
       if (replacement===null) {
         replacement = setup.find_tobe_replacement(word, new_pronoun);
-        if (replacement===null) replacement = word;
+        if (replacement===null) {
+          replacement = setup.find_verb_replacement(word, new_pronoun);
+          if (replacement===null) replacement = word;
+        }
       } 
 
       return(replacement);
