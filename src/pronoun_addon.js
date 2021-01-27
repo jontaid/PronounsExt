@@ -355,10 +355,11 @@ setup.find_verb_replacement = function(original, target_pronoun) {
 
 }
 
+// Arguments: {text to change} {pronoun1} {pronoun2}...
 setup.pronoun_handler = function() {
   var original = this.args[0];
-  var new_pronoun = this.args[1].toLowerCase();
-  //var new_pronoun_iscap = setup.find_word_case(new_pronoun);
+  var handler_args = this.args // store for use in closure
+  
   var new_text = original.replace(/(['\u02BC]?\p{Alphabetic}+'?\p{Alphabetic}*)([1-9]+[0-9]*)/gu,
     // this matches ' or U+02BC chars when they occur at start of a word or in
     // the middle of a word, provide word ends with a number not starting with a 0
@@ -368,6 +369,15 @@ setup.pronoun_handler = function() {
       if (setup.pronoun_debug)
         console.log(`Replacing ${match} (${p1}, ${p2})...`);
       var word = p1;
+
+      var pronoun_index = p2;
+      var new_pronoun = handler_args[pronoun_index];
+      // arguments 1+ give pronouns to use for each index
+      if (new_pronoun==null) {
+        console.log(`Pronoun #${p2} was not supplied, default to you.`);
+        new_pronoun = "You";
+      }
+      new_pronoun = new_pronoun.toLowerCase()
 
       // handle possibility of word having a unicode apostrophe U+02BC
       // to so by saving if this was present, replacing all U+02BC with '
