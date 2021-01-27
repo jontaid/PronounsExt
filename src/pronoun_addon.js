@@ -354,7 +354,8 @@ setup.pronoun_handler = function() {
   var original = this.args[0];
   var new_pronoun = this.args[1].toLowerCase();
   //var new_pronoun_iscap = setup.find_word_case(new_pronoun);
-  var new_text = original.replace(/(\p{Alphabetic}+)([0-9]+)/gu,
+  var new_text = original.replace(/('?\p{Alphabetic}+)([0-9]+)/gu,
+    // this matches ' chars when they occur at start of a word
     function(match, p1, p2){
       if (setup.pronoun_debug)
         console.log(`Replacing ${match} (${p1}, ${p2})...`);
