@@ -356,11 +356,48 @@ setup.find_verb_replacement = function(original, target_pronoun) {
 }
 
 // Arguments: {text to change} {pronoun1} {pronoun2}...
+// pronoun may be a simpler pronoun or 1:You,Doe
+// format
 setup.pronoun_handler = function() {
+  // This is original text
   var original = this.args[0];
-  var handler_args = this.args // store for use in closure
+
+  var default_pronoun = "you";
+  var default_proper_noun = "Doe";
+
+  // Process other args to get pronouns.
+  var pronoun_dict = {};
+  for (var i=1; i<this.args.length; i++) {
+    var pronoun_arg = this.args[i];
+    var pronoun_index;
+    
+    // Check if arg contains a specified index, if not use argument index.
+    if (pronoun_arg.contains(":")) {
+      [pronoun_index, pronoun_arg] = pronoun_arg.split(":", 2);
+      pronoun_index = parseInt(pronoun_index)
+      if (pronoun_index!=pronoun_index) {
+        // NaN
+        console.log(`Warning: pronoun arg ${pronoun_arg} index ${pronoun_index} cannot be parsed to int. Using arg index.`)
+        pronoun_index = i;
+      }
+    } else pronoun_index = i;
+
+    // Check if arg specifies a proper noun (name), if default to "Doe"
+    var pronoun_value, proper_noun;
+    if (pronoun_arg.contains(",")) {
+      [pronoun_value, proper_noun] = pronoun_arg.split(",", 2);
+    } else [pronoun_value, proper_noun] = [pronoun_arg, null];
+
+    pronoun_dict[pronoun_index] = [pronoun_value, proper_noun];
+  }
+
+  if (setup.pronoun_debug) {
+    console.log("Pronoun dict follows:");
+    console.log(pronoun_dict);
+  }
+
   
-  var new_text = original.replace(/(['\u02BC]?\p{Alphabetic}+'?\p{Alphabetic}*)([1-9]+[0-9]*)/gu,
+  var new_text = original.replace(/(['\u02BC]?\p{Alphabetic}+'?\p{Alphabetic}*)([1-9]+[0-9]*n?)/gu,
     // this matches ' or U+02BC chars when they occur at start of a word or in
     // the middle of a word, provide word ends with a number not starting with a 0
     // note that \p{Alphabetic} includes U+02BC by default
@@ -370,13 +407,29 @@ setup.pronoun_handler = function() {
         console.log(`Replacing ${match} (${p1}, ${p2})...`);
       var word = p1;
 
-      var pronoun_index = p2;
-      var new_pronoun = handler_args[pronoun_index];
-      // arguments 1+ give pronouns to use for each index
-      if (new_pronoun==null) {
-        console.log(`Pronoun #${p2} was not supplied, default to you.`);
-        new_pronoun = "You";
+      // if second element ends with n, this specifies to use proper noun as
+      // replacement for any pronoun
+      var use_proper_noun = false;
+      if (p2.endsWith("n")) {
+        use_proper_noun = true;
+        p2 = p2.slice(0, -1);
       }
+
+      // find new pronoun, stored in pronoun_dict as [pronoun, proper_noun]
+      // with potentially missing entry, or missing proper_noun (null)
+      var pronoun_index = parseInt(p2);
+      var new_pronoun_details = pronoun_dict[pronoun_index];
+      var new_pronoun, new_proper_noun;
+      if (new_pronoun_details!=null) {
+        [new_pronoun, new_proper_noun] = new_pronoun_details;
+        if (new_proper_noun==null) new_proper_noun = default_proper_noun;
+        // don't warn if using default proper noun as using proper nouns is 
+        // optional behaviour
+      } else {
+        console.log(`Warning: Pronoun #${p2} was not supplied, default to ${default_pronoun}, ${default_proper_noun}.`);
+        [new_pronoun, new_proper_noun] = [default_pronoun, default_proper_noun];
+      }
+
       new_pronoun = new_pronoun.toLowerCase()
 
       // handle possibility of word having a unicode apostrophe U+02BC
@@ -398,6 +451,11 @@ setup.pronoun_handler = function() {
       for (const word_part of word_parts) {
         var replacement_part;
         replacement_part = setup.find_pronoun_replacement(word_part, new_pronoun);
+        if (use_proper_noun && replacement_part!==null) {
+          if (setup.pronoun_debug)
+            console.log(`Pronoun+proper noun replacement, replacing with ${new_proper_noun}`);
+          replacement_part = new_proper_noun;
+        }
         if (replacement_part===null) {
           replacement_part = setup.find_tobe_replacement(word_part, new_pronoun);
           if (replacement_part===null) {
