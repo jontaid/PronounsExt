@@ -26,9 +26,13 @@ setup.find_word_case = function(word) {
 
 // Returns replacement with correct case (LOWER, UPPER or UPPER_FIRST)
 // given case in original
+// Assumes replacement is already in lower-case, and only changes replacement
+// if original is UPPER or UPPER_FIRST
+// (This allows handling of words such as I that are always in upper-case:
+// if the default is upper case, it will be kept even for original as LOWER)
 setup.match_word_case = function(original, replacement) {
   var original_case = setup.find_word_case(original);
-  if (original_case==WordCase.LOWER) return replacement.toLowerCase();
+  if (original_case==WordCase.LOWER) return replacement;
   if (original_case==WordCase.UPPER) return replacement.toUpperCase();
   return replacement.toLowerCase().toUpperFirst();
     // toUpperFirst() only converts first letter
@@ -341,6 +345,7 @@ setup.find_verb_replacement = function(original, target_pronoun) {
       var replacement = original.replace(verb_regex, verg_regex_replace)
       if (setup.pronoun_debug)
         console.log(`  Found ${verb_regex} in ${original}, replacing with ${replacement}`);
+      replacement = setup.match_word_case(original, replacement)
       return replacement;
     }
   }
@@ -354,8 +359,11 @@ setup.pronoun_handler = function() {
   var original = this.args[0];
   var new_pronoun = this.args[1].toLowerCase();
   //var new_pronoun_iscap = setup.find_word_case(new_pronoun);
-  var new_text = original.replace(/(['\u02BC]?\p{Alphabetic}+)([1-9]+[0-9]*)/gu,
-    // this matches ' chars when they occur at start of a word
+  var new_text = original.replace(/(['\u02BC]?\p{Alphabetic}+'?\p{Alphabetic}*)([1-9]+[0-9]*)/gu,
+    // this matches ' or U+02BC chars when they occur at start of a word or in
+    // the middle of a word, provide word ends with a number not starting with a 0
+    // note that \p{Alphabetic} includes U+02BC by default
+    // this allows both I1'm1 and I'm1 formats
     function(match, p1, p2){
       if (setup.pronoun_debug)
         console.log(`Replacing ${match} (${p1}, ${p2})...`);
@@ -370,15 +378,26 @@ setup.pronoun_handler = function() {
       if (word_has_unicode_apost) {
         word = word.replace("\u02BC","'");
       }
-      var replacement;
-      replacement = setup.find_pronoun_replacement(word, new_pronoun);
-      if (replacement===null) {
-        replacement = setup.find_tobe_replacement(word, new_pronoun);
-        if (replacement===null) {
-          replacement = setup.find_verb_replacement(word, new_pronoun);
-          if (replacement===null) replacement = word;
-        }
-      } 
+      var word_parts;
+      if (word.contains("'")) {
+        var word_parts = word.split(/(?=\')/g, 2);
+      } else word_parts = [word];
+
+      var replacement = "";
+
+      for (const word_part of word_parts) {
+        var replacement_part;
+        replacement_part = setup.find_pronoun_replacement(word_part, new_pronoun);
+        if (replacement_part===null) {
+          replacement_part = setup.find_tobe_replacement(word_part, new_pronoun);
+          if (replacement_part===null) {
+            replacement_part = setup.find_verb_replacement(word_part, new_pronoun);
+            if (replacement_part===null) replacement = word_part;
+          }
+        } 
+        replacement+=replacement_part;
+      }
+
 
       // restore unicode apostrophe
       if (word_has_unicode_apost) {
