@@ -360,15 +360,15 @@ setup.find_verb_replacement = function(original, target_pronoun) {
 // format
 setup.pronoun_handler = function() {
   // This is original text
-  var original = this.args[0];
+  var original = arguments[0];
 
   var default_pronoun = "you";
   var default_proper_noun = "Doe";
 
   // Process other args to get pronouns.
   var pronoun_dict = {};
-  for (var i=1; i<this.args.length; i++) {
-    var pronoun_arg = this.args[i];
+  for (var i=1; i<arguments.length; i++) {
+    var pronoun_arg = arguments[i];
     var pronoun_index;
     
     // Check if arg contains a specified index, if not use argument index.
@@ -487,5 +487,5 @@ setup.pronoun_handler = function() {
 
       return(replacement);
     });
-  this.output.append(new_text);
+  return new_text;
 };
