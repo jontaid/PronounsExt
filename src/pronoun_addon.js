@@ -1,4 +1,4 @@
-setup.pronoun_debug = true;
+setup.pronoun_debug = false;
 
 // Enum to define the case of a word, either lower, upper or first letter upper
 const WordCase = {
@@ -397,9 +397,10 @@ setup.pronoun_handler = function() {
   }
 
   
-  var new_text = original.replace(/(['\u02BC]?\p{Alphabetic}+'?\p{Alphabetic}*)([1-9]+[0-9]*n?)/gu,
+  var new_text = original.replace(/(['\u02BC]?\p{Alphabetic}+['/]?\p{Alphabetic}*)([1-9]+[0-9]*n?)/gu,
     // this matches ' or U+02BC chars when they occur at start of a word or in
-    // the middle of a word, provide word ends with a number not starting with a 0
+    // the middle of a word, provided word ends with a number not starting with a 0
+    // also allows / in middle of word
     // note that \p{Alphabetic} includes U+02BC by default
     // this allows both I1'm1 and I'm1 formats
     function(match, p1, p2){
@@ -450,20 +451,32 @@ setup.pronoun_handler = function() {
 
       for (const word_part of word_parts) {
         var replacement_part;
-        replacement_part = setup.find_pronoun_replacement(word_part, new_pronoun);
-        if (use_proper_noun && replacement_part!==null) {
+        if (word.contains("/")) {
+          // the / character is the syntax for regular s-form verbs
+          // with the part preceeding the / indicating the regular verb
+          // simply lookup this using find_verb_replacement
+          var [regular_verb, _] = word.split("/");
           if (setup.pronoun_debug)
-            console.log(`Pronoun+proper noun replacement, replacing with ${new_proper_noun}`);
-          replacement_part = new_proper_noun;
-        }
-        if (replacement_part===null) {
-          replacement_part = setup.find_tobe_replacement(word_part, new_pronoun);
-          if (replacement_part===null) {
-            replacement_part = setup.find_verb_replacement(word_part, new_pronoun);
-            if (replacement_part===null) replacement = word_part;
+            console.log(`Found / in word, doing replacement with regular verb ${regular_verb}`);
+          replacement_part = setup.find_verb_replacement(regular_verb, new_pronoun);
+          if (replacement_part===null) replacement = regular_verb;
+        } else {
+          // normal word replacement
+          replacement_part = setup.find_pronoun_replacement(word_part, new_pronoun);
+          if (use_proper_noun && replacement_part!==null) {
+            if (setup.pronoun_debug)
+              console.log(`Pronoun+proper noun replacement, replacing with ${new_proper_noun}`);
+            replacement_part = new_proper_noun;
           }
-        } 
-        replacement+=replacement_part;
+          if (replacement_part===null) {
+            replacement_part = setup.find_tobe_replacement(word_part, new_pronoun);
+            if (replacement_part===null) {
+              replacement_part = setup.find_verb_replacement(word_part, new_pronoun);
+              if (replacement_part===null) replacement = word_part;
+            }
+          } 
+        }
+      replacement+=replacement_part;
       }
 
 
