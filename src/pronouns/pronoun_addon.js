@@ -1,3 +1,26 @@
+/*
+This file is part of PronounsExt. 
+This is a pronouns extension for the SugarCube 2 story format.
+
+Copyright (c) 2021 Jonathon T. Aider (a pseudonym)
+
+This library is free software; you can redistribute it and/or modify 
+it under the terms of the GNU Lesser General Public License as published by 
+the Free Software Foundation; either version 3.0 of the License, or 
+(at your option) any later version.
+
+This library is distributed in the hope that it will be useful, 
+but WITHOUT ANY WARRANTY; without even the implied warranty of 
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the 
+GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License 
+along with this library. If not, see <https://www.gnu.org/licenses/>.
+*/
+
+
+// This variable can be enabled to turn on very verbose output to console for
+// debugging
 setup.pronoun_debug = false;
 
 // Enum to define the case of a word, either lower, upper or first letter upper
@@ -43,11 +66,11 @@ setup.create_pronoun_tobe_dicts = function() {
   var pronoun_template = {
   // This maps subject_pronoun: [[other_pronounforms], [attributes]]
   // i.e.
-  // subject : [[ object, reflexive, adjective, possesive],
+  // subject : [[ object, reflexive, adjective, possessive],
   //            [1st2nd3rd_person, sing/pl, verb form]]
   // 1st2nd3rd_person as 1-3, sing/pl as 1, 2 (sing, plural)
   // verb form as 1 regular, 2 s form
-  // obj-possesive pronouns can be in actual/umabiguous form
+  // obj-possessive pronouns can be in actual/umambiguous form
   // in which case 'actual' is the actual pronoun, but 
   // 'unambiguous' is an identifier used in the text to
   // unambiguously specify a certain type of pronoun when ambiguities exist
@@ -81,19 +104,19 @@ setup.create_pronoun_tobe_dicts = function() {
   // Checks are done in order so first match found is used, i.e. catch-all
   // should be last item in this list.
   var verb_replacement_sets = [
-    [/(.*ch)/u, "$1es"],
-    [/(.*sh)/u, "$1es"],
-    [/(.*ss)/u, "$1es"],
-    [/(.*l)f/u, "$1ves"],
-    [/(.*i)fe/u, "$1ves"],
-    [/(.*x)/u, "$1es"],
-    [/(.*[aeiou]s)/u, "$1es"],
-    [/(.*z)/u, "$1es"],
-    [/(.*[aeiou]y)/u, "$1s"],
-    [/(.*[^aeiou])y/u, "$1ies"],
-    [/(.*[aeiou]o)/u, "$1s"],
-    [/(.*[^aeiou])o/u, "$1oes"],
-    [/(.*)/u, "$1s"],
+    [/(.*ch)$/u, "$1es"],
+    [/(.*sh)$/u, "$1es"],
+    [/(.*ss)$/u, "$1es"],
+    [/(.*l)f$/u, "$1ves"],
+    [/(.*i)fe$/u, "$1ves"],
+    [/(.*x)$/u, "$1es"],
+    [/(.*[aeiou]s)$/u, "$1es"],
+    [/(.*z)$/u, "$1es"],
+    [/(.*[aeiou]y)$/u, "$1s"],
+    [/(.*[^aeiou])y$/u, "$1ies"],
+    [/(.*[aeiou]o)$/u, "$1s"],
+    [/(.*[^aeiou])o$/u, "$1oes"],
+    [/(.*)$/u, "$1s"],
   ]
 
 
