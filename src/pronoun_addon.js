@@ -360,16 +360,19 @@ setup.find_verb_replacement = function(original, target_pronoun) {
 // format
 setup.pronoun_handler = function() {
   // This is original text
-  var original = arguments[0];
+  var original = arguments[arguments.length-1];
 
   var default_pronoun = "you";
   var default_proper_noun = "Doe";
+  var default_provided = false; // true if user provided a default argument
 
   // Process other args to get pronouns.
   var pronoun_dict = {};
-  for (var i=1; i<arguments.length; i++) {
+  var num_pronoun_args = arguments.length-1; // exclude 1 arg (text to replace)
+  for (var i=0; i<num_pronoun_args; i++) {
     var pronoun_arg = arguments[i];
     var pronoun_index;
+    var arg_index = i+1; // +1 as 1-based
     
     // Check if arg contains a specified index, if not use argument index.
     if (pronoun_arg.contains(":")) {
@@ -377,16 +380,27 @@ setup.pronoun_handler = function() {
       pronoun_index = parseInt(pronoun_index)
       if (pronoun_index!=pronoun_index) {
         // NaN
-        console.log(`Warning: pronoun arg ${pronoun_arg} index ${pronoun_index} cannot be parsed to int. Using arg index.`)
-        pronoun_index = i;
+        console.log(`Warning: pronoun arg ${pronoun_arg} index ${pronoun_index} cannot be parsed to int. Using arg index ${arg_index}.`)
+        pronoun_index = arg_index;
       }
-    } else pronoun_index = i;
+    } else {
+      pronoun_index = arg_index;
+    }
 
     // Check if arg specifies a proper noun (name), if default to "Doe"
     var pronoun_value, proper_noun;
     if (pronoun_arg.contains(",")) {
       [pronoun_value, proper_noun] = pronoun_arg.split(",", 2);
     } else [pronoun_value, proper_noun] = [pronoun_arg, null];
+
+
+    // index 0 is preferred default, otherwise index 1 can be default if not already set
+    // (i.e. prevents for overriding 0)
+    if (pronoun_index==0 || (pronoun_index==1 && !default_provided)) {
+      default_pronoun = pronoun_value;
+      if (proper_noun!==null) default_proper_noun = pronoun_value;
+      default_provided = true; // prevents warning about use of default
+    }
 
     pronoun_dict[pronoun_index] = [pronoun_value, proper_noun];
   }
@@ -427,7 +441,8 @@ setup.pronoun_handler = function() {
         // don't warn if using default proper noun as using proper nouns is 
         // optional behaviour
       } else {
-        console.log(`Warning: Pronoun #${p2} was not supplied, default to ${default_pronoun}, ${default_proper_noun}.`);
+        if (!default_provided) // only warn if user did not provide a default
+          console.log(`Warning: Pronoun #${p2} was not supplied, default to ${default_pronoun}, ${default_proper_noun}.`);
         [new_pronoun, new_proper_noun] = [default_pronoun, default_proper_noun];
       }
 
