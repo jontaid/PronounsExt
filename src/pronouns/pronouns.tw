@@ -1,0 +1,116 @@
+:: PronounsExtInfo
+! PronounExt
+Copyright (c) 2021 Jonathon T. Aider (a pseudonym)
+
+This is a pronouns extension for SugarCube 2 (tested with 2.23.1). The extension is released under the LGPLv3 license.
+
+To use: Include the `pronouns.tw` and `pronoun_addon.js` in your SugarCube story (e.g. place in your source directory if compiling with TweeGo). Add an include line e.g. {{{<<include "PronounsInit">>}}} to your StoryInit passage to add the macros to your story. This extension will add a few functions and data structures to your `SugarCube.setup` object, so there is a small chance of a name clash. To view these instructions rendered, you can link to or include the "PronounsExtInfo" passage in your story.
+
+It provides macros to easily convert the English pronouns in a block of text from one form to another. The goal of this extension was to provide a simple lightweight syntax for this conversion that would not distract from the main text. This meant departing from use of SugarCube macros from within the text, as well as templates, which do not provide the flexibility required.
+
+Instead, the syntax used by this extension is a simpler numeric suffix form within a block of text. This block of text is provided either  as an argument for the `pronoun` macro or as the payload with a `pronounblock` macro (the payload being the text between the opening and closing `pronounblock` tags).
+
+The following is an example for this syntax:
+Block: {{{You1 are1 (you're1) going home with me2. I2 follow2 youm1 home. He3 wait/s3 for us4 at his3 house.}}}
+Pronouns provided (as arguments 0-3): {{{You I He We}}}
+Output: <<pronoun "You" "I" "He" "We" "You1 are1 (you're1) going home with me2. I2 follow2 youm1 home. He3 wait/s3 for us4 at his3 house.">>
+
+Pronouns provided (as arguments 0-3): {{{I He You We}}}
+Output: <<pronoun "I" "He" "You" "We" "You1 are1 (you're1) going home with me2. I2 follow2 youm1 home. He3 wait/s3 for us4 at his3 house.">>
+
+Pronouns provided (as arguments 0-3): {{{She It We They}}}
+Output: <<pronoun "She" "It" "We" "They" "You1 are1 (you're1) going home with me2. I2 follow2 youm1 home. He3 wait/s3 for us4 at his3 house.">>
+
+* In this syntax, each word that needs to be replaced is given a simple numeric suffix. This must be a number 1 or greater. Note that the user identifies pronouns as well as any verbs that may need to be changed together with the pronoun by adding this suffix to the word. 
+* More than one pronoun substitution is allowed, in this case pronouns 1-4 are provided, with different suffixes used for the words relevant for each pronoun class. Note that the suffixes could potential refer to individual people, as well as those same people in a group, as this the example shows.
+* The pronouns are matched to suffixes numbers based on either the order they are provided in the argument list (starting from 1, e.g. 1-4 above), or using a '1:' syntax, as given below:
+
+Pronouns provided (as arguments 0-3 in any order): {{{2:She 1:It 3:We 40:They}}}
+Output: <<pronoun "She" "It" "We" "They" "You1 are1 (you're1) going home with me2. I2 follow2 youm1 home. He3 wait/s3 for us40 at his3 house.">>
+
+* Note that this allows pronouns to be given in any order, and also with an arbitrary number e.g. 40 above (unlike the need for sequential numbers with the basic syntax). A potential use case is particular numbers for particular characters in the text, allowing pronouns for each character to be changed on-the-fly.
+
+Pronouns provided (as arguments 0-1 in any order): {{{0:She 1:It}}}
+Output: <<pronoun "0:She" "1:It" "You1 are1 (you're1) going home with me2. I2 follow2 youm1 home. He3 wait/s3 for us4 at his3 house.">>
+
+* The 0 suffix is not attached to any particular pronoun but is used as the default if the user does not provided enough pronouns for all the suffix indexes. If 0 isn't provided, 1 suffix is used as the default, or the hardcoded 'you' default if all else fails.
+* Pronoun substitution occurs entirely with regard to the suffix provided. The source text can be written with pronouns continuously changing for the same person, but the same pronoun class will be substituted regardless of the source text.
+* Pronoun substitution is handled with the word case correctly matched. The lower-case 'i' should be used when a user wishes to write in first person source to identify a lowercase subject pronoun. Fully uppercase words are mostly supported, but note the extension cannot know the difference between I fully uppercase and I first-letter uppercase, and will prefer the former. (It is expected that fully uppercase writing will be rare, and a user can always write in a alternative pronoun if this is really desired).
+* In addition, note that the pronoun 'youm' is used as the subject pronoun for 'you'. This is needed as the extension cannot otherwise distinguish the object pronoun you from the subject pronoun you, and will not be able to substitute the correct pronoun when the pronoun word used for each case differs. The extension will correctly substitute the correct word for 'you' in the case that 'you' pronouns are used, so this is not see by the reader. A full list of the alternative pronoun source words used in this extension is given below:
+{{{
+I: me, myself, my, mine,
+you: youm (you), yourself, your, yours, 
+she: herm (her), herself, her, hers,
+he: him, himself, his, hiss (his),
+it: itm (it), itself, its, itss (its),
+we: us, ourselves, our, ours,
+yous (you): yousm (you), yourselves, yousr (your), yousrs (yours),
+they: them, themselves, their, theirs,
+}}}
+*  This first word is the object pronoun, which also identifies the pronoun class (as the argument provided to the macro), followed by the object, reflexive, possesive-adjective and possesive pronouns. The word outside the brackets are those that are used in the source text, while the word in the bracket is the actual pronoun used in the substituted text (if different). Note the 'm' suffix to identify object pronouns, extra 's' to identify possessives, and the 'yous' plural second-person. (If these are too 'weird', a user could, in theory, avoid these usually forms if they choose to write in a pronoun class that does not require them).
+* The extension is designed to substitute 'be' verbs, as well as convert regular verbs to 's form' verbs used for third person singular subjects. 
+* Note that contractions for 'be' verbs are allowed (e.g. you're). The apostrophe must be either the ' character, or the unicode U+02BC character (ʼ).
+* The extension expects regular verbs within the source text. If a user wishes to write in third person singular, they should use the somewhat clunky 'verb/s' syntax as used for the word 'wait/s'. Here, the regular form of the verb is before the '/' character so that the extension can either use this regular form as-is or modify to the correct 's form'. The exact regular verb must be used before the '/' character, so strange forms such as 'try/ies' may be needed in the source text. (Of course, the user could avoid writing in third-person singular if they wish to avoid these 'strange' verbs).
+* A downside of this syntax is any words of the form xxxx## e.g. person1, apple23 will be processed by this macro. Where these are needed in the text, a zero-width space could be used: apple​23. Where these are needed as variable identifiers for the underlying SugarCube code, a user could either add an underscore (person_1) or start the suffix with 0 (person01). The suffixes processed by this macro must not begin with a 0.
+* As an added feature, including an additional suffix 'n' after the number will substitute the a proper noun provided in this syntax "pronoun,proper_noun":
+
+Block: {{{You1 are1 (you're1) going home with me2. I2 follow2 youm1 home. He3n wait/s3 for us4 at his3 house.}}}
+Pronouns provided (as arguments 0-3): {{{You I He,John We}}}
+Output: <<pronoun "You" "I" "He,John" "We" "You1 are1 (you're1) going home with me2. I2 follow2 youm1 home. He3n wait/s3 for us4 at his3 house.">>
+
+* Note the 'He3n' in the last sentence of the source text above is subtituted for the proper_noun in argument 3 (this can be mixed with the '#:pronoun' syntax if needed.
+* Here is an example of the 'pronounblock' form, also providing an example of the use of backquotes to feed a variable into the argument list (in actual use, this will probably be a global variable rather than a temporary one)
+
+{{{
+<<run _playerpronoun = "I">>\
+<<pronounblock "You" `"2:"+_playerpronoun` "He,John" "We">>\
+You1 are1 (you're1) going home with me2.
+I2 follow2 youm1 home. He3n wait/s3 for us4 at his3 house.
+<</pronounblock>>\
+}}}
+Output:
+<<run _playerpronoun = "I">>\
+<<pronounblock "You" `"2:"+_playerpronoun` "He,John" "We">>\
+You1 are1 (you're1) going home with me2.
+I2 follow2 youm1 home. He3n wait/s3 for us4 at his3 house.
+<</pronounblock>>\
+
+
+:: PronounsExtLicense
+This file is part of PronounsExt. 
+This is a pronouns extension for the SugarCube 2 story format.
+
+Copyright (c) 2021 Jonathon T. Aider (a pseudonym)
+
+This library is free software; you can redistribute it and/or modify 
+it under the terms of the GNU Lesser General Public License as published by 
+the Free Software Foundation; either version 3.0 of the License, or 
+(at your option) any later version.
+
+This library is distributed in the hope that it will be useful, 
+but WITHOUT ANY WARRANTY; without even the implied warranty of 
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the 
+GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License 
+along with this library. If not, see <https://www.gnu.org/licenses/>.
+
+:: PronounsInit
+<<nobr>>
+<<script>>
+  Macro.add("pronoun", {
+    handler : function() {
+      this.output.append(setup.pronoun_handler(...this.args));
+    },
+  });
+  Macro.add("pronounblock", {
+    tags : null,
+    handler : function() {
+      /*console.log(this.payload);*/
+      /*console.log(this.args);*/
+      this.payload[0].contents = setup.pronoun_handler(...this.args, this.payload[0].contents);
+      jQuery(this.output).wiki(this.payload[0].contents);
+    },
+  });
+<</script>>
+<</nobr>>
